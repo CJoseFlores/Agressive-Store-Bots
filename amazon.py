@@ -1,6 +1,9 @@
 import bs4
 import sys
 import time
+import logging
+import argparse
+import configparser
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 from twilio.rest import Client
@@ -8,17 +11,22 @@ from selenium.webdriver.firefox.options import Options
 from webdriver_manager.firefox import GeckoDriverManager
 from twilio.base.exceptions import TwilioRestException
 
+# TODO: Move all of this somewhere else. Having the default values of empty string sucks.
+
 # Amazon credentials
-username = 'your_username'
-password = 'your_password'
+username = ""
+password = ""
 
 # Twilio configuration
-toNumber = 'your_phonenumber'
-fromNumber = 'twilio_phonenumber'
-accountSid = 'ssid'
-authToken = 'authtoken'
-client = Client(accountSid, authToken)
+to_number = ""
+from_number = ""
+account_sid = 'blah'
+auth_token = 'blah'
+client = Client(account_sid, auth_token)
 
+# Constant Strings
+amazon_login_info_key = 'amazon-login-info'
+twilio_config_key = 'twilio_config'
 
 def time_sleep(x, driver):
     for i in range(x, -1, -1):
@@ -85,7 +93,7 @@ def finding_cards(driver):
             find_all_cards = soup.find_all('span', {'class': 'style__text__2xIA2'})
             for card in find_all_cards:
                 if 'Add to Cart' in card.get_text():
-                    print('Card Available!')
+                    logging.info('Card Available!')
                     driver_wait(driver, 'css', '.style__addToCart__9TqqV')
                     driver.get('https://www.amazon.com/gp/cart/view.html?ref_=nav_cart')
                     driver_wait(driver, 'css', '.a-button-input')
@@ -97,9 +105,9 @@ def finding_cards(driver):
                     except NoSuchElementException:
                         pass
                     driver_wait(driver, 'css', '.a-button-input')  # Final Checkout Button!
-                    print('Order Placed')
+                    logging.info('Order Placed')
                     try:
-                        client.messages.create(to=toNumber, from_=fromNumber, body='ORDER PLACED!')
+                        client.messages.create(to=to_number, from_=from_number, body='ORDER PLACED!')
                     except (NameError, TwilioRestException):
                         pass
                     for i in range(3):
@@ -114,6 +122,57 @@ def finding_cards(driver):
 
 
 if __name__ == '__main__':
+    # Load arguments
+    parser = argparse.ArgumentParser(description='Bot that buys items from amazon storefronts.')
+    parser.add_argument('-f', '--file', dest='file_path', default='bot-config.ini', help='The path to the bot '
+                                                                                         'configuration file ('
+                                                                                         'defaults to relative file: '
+                                                                                         'bot-config.ini)')
+    config_file_path = parser.parse_args().file_path
+
+    # Load configuration file
+    try:
+        with open(config_file_path, 'r+') as f:
+            config_file = f.read()
+
+        config = configparser.ConfigParser()
+        config.read(config_file_path, encoding='utf-8-sig')
+    except configparser.MissingSectionHeaderError:
+        print("There was an error loading the config file. Make sure your headers are enclosed in brackets '[]'. "
+              "Exiting...")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("Could not find or open file referenced by path: " + config_file_path)
+        sys.exit(1)
+
+    # Parse the amazon configuration
+    if amazon_login_info_key in config:
+        try:
+            username = config[amazon_login_info_key]['username']
+            password = config[amazon_login_info_key]['password']
+        except KeyError:
+            print("Missing 'username' or 'password' keywords from the [" + amazon_login_info_key + "] config section.")
+            sys.exit(1)
+    else:
+        print("Could not find the '[amazon-login-info]' config section. Exiting...")
+        sys.exit(1)
+
+    # Parse the twilio configuration
+    if twilio_config_key in config:
+        try:
+            to_number = config[twilio_config_key]['toNumber']
+            from_number = config[twilio_config_key]['fromNumber']
+            account_sid = config[twilio_config_key]['accountSid']
+            auth_token = config[twilio_config_key]['authToken']
+            client = Client(account_sid, auth_token)
+        except KeyError:
+            print("Missing one or all of the config keywords from the [" + twilio_config_key + "] config section:"
+                  + "'toNumber', 'fromNumber', 'accountSid', 'authToken'.")
+            sys.exit(1)
+    else:
+        print("Could not find the '[twilio_config_key]' config section. Exiting...")
+        sys.exit(1)
+
     driver = create_driver()
     login_attempt(driver)
     finding_cards(driver)
