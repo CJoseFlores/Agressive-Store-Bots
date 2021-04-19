@@ -17,7 +17,7 @@ new_egg_bot_type_val = 'newegg'
 
 if __name__ == '__main__':
     # Load arguments
-    parser = argparse.ArgumentParser(description='Bot that buys items from amazon storefronts.')
+    parser = argparse.ArgumentParser(description='Bot that buys items from various store fronts.')
     parser.add_argument('-f', '--file', dest='file_path', default='bot-config.ini', help='The path to the bot '
                                                                                          'configuration file ('
                                                                                          'defaults to relative file: '
@@ -26,7 +26,7 @@ if __name__ == '__main__':
                         '--bot-type',
                         dest='bot_type',
                         default='amazon',
-                        help="Choose the type of bot you want to use. Supported values: ['"
+                        help="The type of bot to use. Supported values: ['"
                              + amazon_bot_type_val + ", '" + best_buy_bot_type_val + "', '"
                              + new_egg_bot_type_val + "']. Defaults to 'amazon'. ")
     config_file_path = parser.parse_args().file_path
