@@ -13,9 +13,10 @@ from twilio.base.exceptions import TwilioRestException
 
 # TODO: Move all of this somewhere else. Having the default values of empty string sucks.
 
-# Amazon credentials
+# Amazon config
 username = ""
 password = ""
+store_url = "https://www.amazon.com/stores/GeForce/RTX3080_GEFORCERTX30SERIES/page/6B204EA4-AAAC-4776-82B1-D7C3BD9DDC82"
 
 # Twilio configuration
 to_number = ""
@@ -24,9 +25,13 @@ account_sid = 'blah'
 auth_token = 'blah'
 client = Client(account_sid, auth_token)
 
+# Firefox config
+firefox_profile_path = r'C:\Users\Trebor\AppData\Roaming\Mozilla\Firefox\Profiles\kwftlp36.default-release'
+
 # Constant Strings
-amazon_login_info_key = 'amazon-login-info'
-twilio_config_key = 'twilio_config'
+amazon_config_key = 'amazon-config'
+twilio_config_key = 'twilio-config'
+firefox_config_key = 'firefox-config'
 
 def time_sleep(x, driver):
     for i in range(x, -1, -1):
@@ -45,7 +50,7 @@ def create_driver():
     """Creating driver."""
     options = Options()
     options.headless = False  # Change To False if you want to see Firefox Browser Again.
-    profile = webdriver.FirefoxProfile(r'C:\Users\Trebor\AppData\Roaming\Mozilla\Firefox\Profiles\kwftlp36.default-release')
+    profile = webdriver.FirefoxProfile(firefox_profile_path)
     driver = webdriver.Firefox(profile, options=options, executable_path=GeckoDriverManager().install())
     return driver
 
@@ -80,7 +85,7 @@ def login_attempt(driver):
         time.sleep(2)
     except NoSuchElementException:
         pass
-    driver.get('https://www.amazon.com/stores/GeForce/RTX3080_GEFORCERTX30SERIES/page/6B204EA4-AAAC-4776-82B1-D7C3BD9DDC82')
+    driver.get(store_url)
 
 
 def finding_cards(driver):
@@ -146,15 +151,17 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Parse the amazon configuration
-    if amazon_login_info_key in config:
+    if amazon_config_key in config:
         try:
-            username = config[amazon_login_info_key]['username']
-            password = config[amazon_login_info_key]['password']
+            username = config[amazon_config_key]['username']
+            password = config[amazon_config_key]['password']
+            store_url = config[amazon_config_key]['storeUrl']
         except KeyError:
-            print("Missing 'username' or 'password' keywords from the [" + amazon_login_info_key + "] config section.")
+            print("Missing 'username', 'password' or 'storeUrl' keywords from the [" + amazon_config_key
+                  + "] config section.")
             sys.exit(1)
     else:
-        print("Could not find the '[amazon-login-info]' config section. Exiting...")
+        print("Could not find the [" + amazon_config_key + "] config section. Exiting...")
         sys.exit(1)
 
     # Parse the twilio configuration
@@ -170,8 +177,19 @@ if __name__ == '__main__':
                   + "'toNumber', 'fromNumber', 'accountSid', 'authToken'.")
             sys.exit(1)
     else:
-        print("Could not find the '[twilio_config_key]' config section. Exiting...")
+        print("Could not find the [" + twilio_config_key + "] config section. Exiting...")
         sys.exit(1)
+
+        # Parse the firefox configuration
+    if firefox_config_key in config:
+        try:
+            # Encode the profile path with unicode-escape to escape windows back slashes in the bath.
+            firefox_profile_path = config[firefox_config_key]['profilePath'].encode('unicode-escape').decode()
+        except KeyError:
+            print("Missing config keyword 'profilePath' from the config section [" + firefox_config_key + "].")
+            sys.exit(1)
+    else:
+        print("Could not find the [" + firefox_config_key + "] config section. Exiting...")
 
     driver = create_driver()
     login_attempt(driver)
